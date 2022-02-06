@@ -1,8 +1,8 @@
 Cloudformation CI/CD example
 ============================
 
-[![Check CFn templates](https://github.com/codequokka/deploy-cfn-templates-with-github-actions/actions/workflows/check.yml/badge.svg)](https://github.com/codequokka/deploy-cfn-templates-with-github-actions/actions/workflows/check.yml)
-[![Deploy CFn templates](https://github.com/codequokka/deploy-cfn-templates-with-github-actions/actions/workflows/deploy.yml/badge.svg)](https://github.com/codequokka/deploy-cfn-templates-with-github-actions/actions/workflows/deploy.yml)
+[![Check CFn templates](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/check.yml/badge.svg)](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/check.yml)
+[![Deploy CFn templates](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/deploy.yml/badge.svg)](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/deploy.yml)
 
 ## An example of AWS cloudfomation CI/CD with Github Actions
 
