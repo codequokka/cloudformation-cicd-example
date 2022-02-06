@@ -1,4 +1,5 @@
 ---
+# This comment is for CI/CD testing
 AWSTemplateFormatVersion: 2010-09-09
 
 Description: Create a admin user, a role for Github Actions CD.
