@@ -1,0 +1,71 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Enable Cloudtrail service.
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Buckets, Bucket policies
+  #-----------------------------------------------------------------------------
+  CloudtrailServiceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub cloudtrail-service-${AWS::AccountId}-an1
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Pending
+          - id: W41
+            reason: Pending
+
+  CloudtrailServiceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CloudtrailServiceBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Allow Cloudtrail to get bucket ACL
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt CloudtrailServiceBucket.Arn
+          - Sid: Allow Cloudtrail to put logs
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Join
+              - ""
+              - - !GetAtt CloudtrailServiceBucket.Arn
+                - !Sub /AWSLogs/${AWS::AccountId}/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  #-----------------------------------------------------------------------------
+  # Trail
+  #-----------------------------------------------------------------------------
+  DefaultTrail:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      TrailName: default-trail
+      EnableLogFileValidation: true
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      S3BucketName: !Ref CloudtrailServiceBucket
+      KMSKeyId: !ImportValue CommonKeyArn
+      EventSelectors:
+        - IncludeManagementEvents: true
+          DataResources:
+            - Type: AWS::S3::Object
+          ReadWriteType: All
+      IsLogging: true

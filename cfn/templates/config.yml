@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Enable Config service.
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Buckets, Bucket policies
+  #-----------------------------------------------------------------------------
+  ConfigServiceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub config-service-${AWS::AccountId}-an1
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Pending
+          - id: W41
+            reason: Pending
+
+  ConfigServiceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ConfigServiceBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AWSConfigBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt ConfigServiceBucket.Arn
+          - Sid: AWSConfigBucketExistenceCheck
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:ListBucket
+            Resource: !GetAtt ConfigServiceBucket.Arn
+          - Sid: AWSConfigBucketDelivery
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Join
+              - ""
+              - - !GetAtt ConfigServiceBucket.Arn
+                - !Sub /AWSLogs/${AWS::AccountId}/Config/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  #-----------------------------------------------------------------------------
+  # Roles
+  #-----------------------------------------------------------------------------
+  ConfigServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ConfigServiceRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSConfigRole
+      Policies:
+        - PolicyName: PutLogsPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Join
+                  - ""
+                  - - !GetAtt ConfigServiceBucket.Arn
+                    - !Sub /AWSLogs/${AWS::AccountId}/*
+                Condition:
+                  StringLike:
+                    s3:x-amz-acl: bucket-owner-full-control
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketAcl
+                Resource: !GetAtt ConfigServiceBucket.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # Config Recorders
+  #-----------------------------------------------------------------------------
+  DefaultConfigRecorder:
+    Type: AWS::Config::ConfigurationRecorder
+    Properties:
+      RoleARN: !GetAtt ConfigServiceRole.Arn
+      RecordingGroup:
+        AllSupported: True
+        IncludeGlobalResourceTypes: True
+
+  #-----------------------------------------------------------------------------
+  # Delivery Channels
+  #-----------------------------------------------------------------------------
+  DefaultDeliveryChannel:
+    Type: AWS::Config::DeliveryChannel
+    Properties:
+      S3BucketName: !Ref ConfigServiceBucket
+      ConfigSnapshotDeliveryProperties:
+        DeliveryFrequency: TwentyFour_Hours
+      S3KmsKeyArn: !ImportValue CommonKeyArn

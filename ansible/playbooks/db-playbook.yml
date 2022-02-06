@@ -1,0 +1,14 @@
+---
+- name: Install httpd then enable and start it.
+  hosts: localhost
+  tasks:
+    - name: Install MariaDB
+      yum:
+        pkg: mariadb-server
+        state: installed
+
+    - name: Enable and start MariaDB.
+      service:
+        name: mariadb
+        enabled: yes
+        state: started

@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create EC2 instances.
+
+Parameters:
+  CreateDBInstance:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  CreateDBInstance: !Equals [true, !Ref CreateDBInstance]
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Role
+  #-----------------------------------------------------------------------------
+  # For EC2 instances.
+  EC2SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EC2SSMRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # Instance profiles
+  #-----------------------------------------------------------------------------
+  # For Web01 EC2 instance.
+  Web01EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2SSMRole
+      InstanceProfileName: Web01EC2InstanceProfile
+
+  # For DB01 EC2 instance.
+  DB01EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2SSMRole
+      InstanceProfileName: DB01EC2InstanceProfile
+    Condition: CreateDBInstance
+
+  #-----------------------------------------------------------------------------
+  # Security groups
+  #-----------------------------------------------------------------------------
+  # For web servers.
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: web-security-group
+      GroupDescription: Enable HTTP access.
+      VpcId: !ImportValue VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: for HTTP
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F1000
+            reason: Pending
+          - id: W2
+            reason: Pending
+          - id: W9
+            reason: Pending
+          - id: W28
+            reason: Pending
+
+  # For DB servers.
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: db-security-group
+      GroupDescription: Enable MySQL access.
+      VpcId: !ImportValue VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+          Description: for MySQL
+    Condition: CreateDBInstance
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F1000
+            reason: Pending
+          - id: W2
+            reason: Pending
+          - id: W9
+            reason: Pending
+          - id: W28
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # EC2 instances
+  #-----------------------------------------------------------------------------
+  Web01EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      # ImageId: ami-0bccc42bba4dedac1
+      ImageId: ami-0218d08a1f9dac831
+      InstanceType: t2.micro
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          SubnetId: !ImportValue VPC01PublicSubnet
+          GroupSet:
+            - !Ref WebSecurityGroup
+      IamInstanceProfile: !Ref Web01EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: Web01
+        - Key: Patch Group
+          Value: Web
+
+  DB01EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      # ImageId: ami-0bccc42bba4dedac1
+      ImageId: ami-0218d08a1f9dac831
+      InstanceType: t2.micro
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          SubnetId: !ImportValue VPC01PrivateSubnet
+          GroupSet:
+            - !Ref DBSecurityGroup
+      IamInstanceProfile: !Ref DB01EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: DB01
+        - Key: Patch Group
+          Value: DB
+    Condition: CreateDBInstance
+
+Outputs:
+  Web01EC2Instance:
+    Value: !Ref Web01EC2Instance
+    Export:
+      Name: Web01EC2Instance
+
+  DB01EC2Instance:
+    Value: !Ref DB01EC2Instance
+    Export:
+      Name: DB01EC2Instance
+    Condition: CreateDBInstance

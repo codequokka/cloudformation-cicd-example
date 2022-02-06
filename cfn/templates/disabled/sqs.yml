@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create queues, queue policies.
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Queues
+  #-----------------------------------------------------------------------------
+  CloudtrailQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: cloudtrail-ms-sentinel-queue
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W48
+            reason: Pending
+
+  GuarddutyQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: guardduty-ms-sentinel-queue
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W48
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # Queue policies
+  #-----------------------------------------------------------------------------
+  CloudtrailQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref CloudtrailQueue
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Allow S3 to send notification messages to SQS queue
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: SQS:SendMessage
+            Resource: !GetAtt CloudtrailQueue.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:s3:*:*:cloudtrail-${AWS::AccountId}
+          - Sid: Allow MicrosoftSentinelRole to read/delete/change visibility of SQS messages and get queue url
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/MicrosoftSentinelRole
+            Action:
+              - SQS:ChangeMessageVisibility
+              - SQS:DeleteMessage
+              - SQS:ReceiveMessage
+              - SQS:GetQueueUrl
+            Resource: !GetAtt CloudtrailQueue.Arn
+
+  GuarddutyQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref GuarddutyQueue
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Allow s3 to send notification messages to SQS queue
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: SQS:SendMessage
+            Resource: !GetAtt GuarddutyQueue.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub arn:aws:s3:*:*:guardduty-${AWS::AccountId}
+          - Sid: Allow MicrosoftSentinelRole to read/delete/change visibility of SQS messages and get queue url
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:role/MicrosoftSentinelRole
+            Action:
+              - SQS:ChangeMessageVisibility
+              - SQS:DeleteMessage
+              - SQS:ReceiveMessage
+              - SQS:GetQueueUrl
+            Resource: !GetAtt GuarddutyQueue.Arn
+# Outputs:
+#   MyQueueArn:
+#     Value: !GetAtt CloudtrailQueue.Arn
+
+#   MyQueueQueueName:
+#     Value: !GetAtt MyQueue.QueueName

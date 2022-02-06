@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create key for common usage.
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Keys
+  #-----------------------------------------------------------------------------
+  CommonKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: A key for common usage.
+      EnableKeyRotation: true
+      Enabled: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Sid: Allow CloudTrail to encrypt logs
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: kms:GenerateDataKey*
+            Resource: "*"
+          - Sid: Allow GuardDuty to use the key
+            Effect: Allow
+            Principal:
+              Service: guardduty.amazonaws.com
+            Action: kms:GenerateDataKey
+            Resource: "*"
+          - Sid: Allow AWS Config to use the key
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action:
+              - kms:GenerateDataKey*
+              - kms:Decrypt
+            Resource: "*"
+
+  #-----------------------------------------------------------------------------
+  # Key aliases
+  #-----------------------------------------------------------------------------
+  CommonKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/common-key
+      TargetKeyId: !Ref CommonKey
+
+Outputs:
+  CommonKeyArn:
+    Value: !GetAtt CommonKey.Arn
+    Export:
+      Name: CommonKeyArn

@@ -1,0 +1,14 @@
+---
+- name: Install httpd then enable and start it.
+  hosts: localhost
+  tasks:
+    - name: Install httpd
+      yum:
+        pkg: httpd
+        state: installed
+
+    - name: Enable and start httpd.
+      service:
+        name: httpd
+        enabled: yes
+        state: started

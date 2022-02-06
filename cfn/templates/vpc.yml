@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create network related resources(VPC, IGW, Subnets, Routetables, EIP, NATGW).
+
+Parameters:
+  CreatePrivateSubnet:
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  CreatePrivateSubnet: !Equals [true, !Ref CreatePrivateSubnet]
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # VPCs
+  #-----------------------------------------------------------------------------
+  VPC01:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: True
+      Tags:
+        - Key: Name
+          Value: VPC01
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W60
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # IGWs
+  #-----------------------------------------------------------------------------
+  IGW01:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: IGW01
+
+  VPC01IGW01Attachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC01
+      InternetGatewayId: !Ref IGW01
+
+  #-----------------------------------------------------------------------------
+  # Subnets, Routetables
+  #-----------------------------------------------------------------------------
+  # For public subnet.
+  VPC01PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: VPC01PublicSubnet
+    DependsOn: VPC01IGW01Attachment
+
+  VPC01PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref VPC01PublicSubnet
+      RouteTableId: !Ref VPC01PublicRouteTable
+
+  VPC01PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: VPC01PublicRouteTable
+    DependsOn: VPC01IGW01Attachment
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref VPC01PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW01
+    DependsOn: VPC01IGW01Attachment
+
+  # For private subnet.
+  VPC01PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: VPC01PrivateSubnet
+    Condition: CreatePrivateSubnet
+
+  VPC01PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref VPC01PrivateSubnet
+      RouteTableId: !Ref VPC01PrivateRouteTable
+    Condition: CreatePrivateSubnet
+
+  VPC01PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: VPC01PrivateRouteTable
+    Condition: CreatePrivateSubnet
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref VPC01PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref PublicSubnetNatGateway
+    Condition: CreatePrivateSubnet
+
+  #-----------------------------------------------------------------------------
+  # EIPs
+  #-----------------------------------------------------------------------------
+  PublicSubnetNatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    Condition: CreatePrivateSubnet
+
+  #-----------------------------------------------------------------------------
+  # NATGWs
+  #-----------------------------------------------------------------------------
+  PublicSubnetNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt PublicSubnetNatGatewayEIP.AllocationId
+      SubnetId: !Ref VPC01PublicSubnet
+      Tags:
+        - Key: Name
+          Value: public-subnet-nat-gateway
+    Condition: CreatePrivateSubnet
+
+Outputs:
+  VPC01:
+    Value: !Ref VPC01
+    Export:
+      Name: VPC01
+
+  VPC01PublicSubnet:
+    Value: !Ref VPC01PublicSubnet
+    Export:
+      Name: VPC01PublicSubnet
+
+  VPC01PrivateSubnet:
+    Value: !Ref VPC01PrivateSubnet
+    Export:
+      Name: VPC01PrivateSubnet
+    Condition: CreatePrivateSubnet
