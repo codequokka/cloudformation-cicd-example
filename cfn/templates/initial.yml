@@ -26,7 +26,7 @@ Parameters:
 
   CFnTemplatesRepoName:
     Type: String
-    Default: codequokka/deploy-cfn-templates-with-github-actions
+    Default: codequokka/cloudformation-cicd-example
 
 Conditions:
   CreateAccessKey: !Equals [true, !Ref CreateAccessKey]
