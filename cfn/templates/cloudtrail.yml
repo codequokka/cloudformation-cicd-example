@@ -3,6 +3,17 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Description: Enable Cloudtrail service.
 
+Parameters:
+  EnableCloudtrailService:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  EnableCloudtrailService: !Equals [true, !Ref EnableCloudtrailService]
+
 Resources:
   #-----------------------------------------------------------------------------
   # Buckets, Bucket policies
@@ -10,13 +21,14 @@ Resources:
   CloudtrailServiceBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub cloudtrail-service-${AWS::AccountId}-an1
+      BucketName: !Sub cloudtrail-service-${AWS::AccountId}-${AWS::Region}
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
+    Condition: EnableCloudtrailService
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -50,6 +62,7 @@ Resources:
             Condition:
               StringEquals:
                 s3:x-amz-acl: bucket-owner-full-control
+    Condition: EnableCloudtrailService
 
   #-----------------------------------------------------------------------------
   # Trail
@@ -69,3 +82,4 @@ Resources:
             - Type: AWS::S3::Object
           ReadWriteType: All
       IsLogging: true
+    Condition: EnableCloudtrailService

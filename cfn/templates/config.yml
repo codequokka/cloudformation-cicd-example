@@ -2,6 +2,17 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Description: Enable Config service.
 
+Parameters:
+  EnableConfigService:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  EnableConfigService: !Equals [true, !Ref EnableConfigService]
+
 Resources:
   #-----------------------------------------------------------------------------
   # Buckets, Bucket policies
@@ -9,13 +20,14 @@ Resources:
   ConfigServiceBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub config-service-${AWS::AccountId}-an1
+      BucketName: !Sub config-service-${AWS::AccountId}-${AWS::Region}
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
+    Condition: EnableConfigService
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -55,6 +67,7 @@ Resources:
             Condition:
               StringEquals:
                 s3:x-amz-acl: bucket-owner-full-control
+    Condition: EnableConfigService
 
   #-----------------------------------------------------------------------------
   # Roles
@@ -63,6 +76,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       RoleName: ConfigServiceRole
+      Description: Role for Config to put logs.
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -97,6 +111,7 @@ Resources:
         rules_to_suppress:
           - id: W28
             reason: Pending
+    Condition: EnableConfigService
 
   #-----------------------------------------------------------------------------
   # Config Recorders
@@ -108,6 +123,7 @@ Resources:
       RecordingGroup:
         AllSupported: True
         IncludeGlobalResourceTypes: True
+    Condition: EnableConfigService
 
   #-----------------------------------------------------------------------------
   # Delivery Channels
@@ -119,3 +135,4 @@ Resources:
       ConfigSnapshotDeliveryProperties:
         DeliveryFrequency: TwentyFour_Hours
       S3KmsKeyArn: !ImportValue CommonKeyArn
+    Condition: EnableConfigService
