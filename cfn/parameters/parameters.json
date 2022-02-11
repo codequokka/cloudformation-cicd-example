@@ -8,6 +8,10 @@
     "ParameterValue": "false"
   },
   {
+    "ParameterKey": "EnableConfigService",
+    "ParameterValue": "false"
+  },
+  {
     "ParameterKey": "CreatePrivateSubnet",
     "ParameterValue": "false"
   },
