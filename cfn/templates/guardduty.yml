@@ -28,8 +28,6 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
     Condition: EnableGuarddutyService
     Metadata:
       cfn_nag:
