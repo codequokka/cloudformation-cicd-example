@@ -4,6 +4,10 @@
     "ParameterValue": "false"
   },
   {
+    "ParameterKey": "EnableGuarddutyService",
+    "ParameterValue": "false"
+  },
+  {
     "ParameterKey": "CreatePrivateSubnet",
     "ParameterValue": "false"
   },
