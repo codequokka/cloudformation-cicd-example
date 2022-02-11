@@ -15,25 +15,25 @@ Resources:
       KeyPolicy:
         Version: 2012-10-17
         Statement:
-          - Sid: Enable IAM User Permissions
+          - Sid: Enable IAM policies
             Effect: Allow
             Principal:
               AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
             Action: kms:*
             Resource: "*"
-          - Sid: Allow CloudTrail to encrypt logs
+          - Sid: Allow Cloudtrail service to use the key
             Effect: Allow
             Principal:
               Service: cloudtrail.amazonaws.com
             Action: kms:GenerateDataKey*
             Resource: "*"
-          - Sid: Allow GuardDuty to use the key
+          - Sid: Allow Guardduty service to use the key
             Effect: Allow
             Principal:
               Service: guardduty.amazonaws.com
             Action: kms:GenerateDataKey
             Resource: "*"
-          - Sid: Allow AWS Config to use the key
+          - Sid: Allow Config service to use the key
             Effect: Allow
             Principal:
               Service: config.amazonaws.com
