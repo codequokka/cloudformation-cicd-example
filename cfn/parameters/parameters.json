@@ -1,15 +1,15 @@
 [
   {
     "ParameterKey": "EnableCloudtrailService",
-    "ParameterValue": "true"
+    "ParameterValue": "false"
   },
   {
     "ParameterKey": "EnableGuarddutyService",
-    "ParameterValue": "true"
+    "ParameterValue": "false"
   },
   {
     "ParameterKey": "EnableConfigService",
-    "ParameterValue": "true"
+    "ParameterValue": "false"
   },
   {
     "ParameterKey": "CreatePrivateSubnet",
