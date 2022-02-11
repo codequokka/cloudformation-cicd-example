@@ -3,6 +3,17 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Description: Enable Guardduty service.
 
+Parameters:
+  EnableGuarddutyService:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  EnableGuarddutyService: !Equals [true, !Ref EnableGuarddutyService]
+
 Resources:
   #-----------------------------------------------------------------------------
   # Buckets
@@ -10,13 +21,16 @@ Resources:
   GuarddutyServiceBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub guardduty-service-${AWS::AccountId}-an1
+      BucketName: !Sub guardduty-service-${AWS::AccountId}-${AWS::Region}
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: True
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Condition: EnableGuarddutyService
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -82,6 +96,7 @@ Resources:
             Condition:
               Bool:
                 aws:SecureTransport: false
+    Condition: EnableGuarddutyService
 
   #-----------------------------------------------------------------------------
   # Detectors
@@ -91,6 +106,7 @@ Resources:
     Properties:
       FindingPublishingFrequency: SIX_HOURS
       Enable: true
+    Condition: EnableGuarddutyService
 
   # TODO: Enable exporting logs to the S3 bucket by using managed console or CLI.
   # Ex. CLI examaple to Enable exporting logs to the S3 bucket.
@@ -99,9 +115,3 @@ Resources:
   #   --destination-type S3 \
   #   --destination-properties DestinationArn=arn:aws:s3:::<guardduty-bucket>,\
   #     KmsKeyArn=arn:aws:kms:<region>:<account_id>:key/<kms-key-id>
-# Outputs:
-#   GuarddutyDetectorID:
-#     Description: Guardduty detector ID
-#     Value: !Ref Detector
-#     Export:
-#       Name: GuarddutyDetectorID
