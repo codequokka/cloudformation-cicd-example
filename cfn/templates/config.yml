@@ -27,7 +27,6 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
-    Condition: EnableConfigService
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -43,19 +42,19 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: AWSConfigBucketPermissionsCheck
+          - Sid: Allow Config service to get bucket ACL
             Effect: Allow
             Principal:
               Service: config.amazonaws.com
             Action: s3:GetBucketAcl
             Resource: !GetAtt ConfigServiceBucket.Arn
-          - Sid: AWSConfigBucketExistenceCheck
+          - Sid: Allow Config service to check bucket existence
             Effect: Allow
             Principal:
               Service: config.amazonaws.com
             Action: s3:ListBucket
             Resource: !GetAtt ConfigServiceBucket.Arn
-          - Sid: AWSConfigBucketDelivery
+          - Sid: Allow Config service to put logs
             Effect: Allow
             Principal:
               Service: config.amazonaws.com
@@ -67,7 +66,6 @@ Resources:
             Condition:
               StringEquals:
                 s3:x-amz-acl: bucket-owner-full-control
-    Condition: EnableConfigService
 
   #-----------------------------------------------------------------------------
   # Roles
@@ -111,7 +109,6 @@ Resources:
         rules_to_suppress:
           - id: W28
             reason: Pending
-    Condition: EnableConfigService
 
   #-----------------------------------------------------------------------------
   # Config Recorders
