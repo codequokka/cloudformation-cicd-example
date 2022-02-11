@@ -28,7 +28,6 @@ Resources:
         BlockPublicPolicy: True
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
-    Condition: EnableGuarddutyService
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -44,13 +43,13 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: Allow GuardDuty to use the getBucketLocation operation
+          - Sid: Allow Guardduty service to get bucket ACL
             Effect: Allow
             Principal:
               Service: guardduty.amazonaws.com
             Action: s3:GetBucketLocation
             Resource: !GetAtt GuarddutyServiceBucket.Arn
-          - Sid: Allow Guardduty to put logs
+          - Sid: Allow Guardduty service to put logs
             Effect: Allow
             Principal:
               Service: guardduty.amazonaws.com
@@ -59,7 +58,7 @@ Resources:
               - ""
               - - !GetAtt GuarddutyServiceBucket.Arn
                 - /*
-          - Sid: Deny Guardduty to put unencrypted logs
+          - Sid: Deny Guardduty service to put unencrypted logs
             Effect: Deny
             Principal:
               Service: guardduty.amazonaws.com
@@ -71,7 +70,7 @@ Resources:
             Condition:
               StringNotEquals:
                 s3:x-amz-server-side-encryption: aws:kms
-          - Sid: Deny Guardduty to put logs with incorrect encryption header
+          - Sid: Deny Guardduty service to put logs with incorrect encryption header
             Effect: Deny
             Principal:
               Service: guardduty.amazonaws.com
@@ -94,7 +93,6 @@ Resources:
             Condition:
               Bool:
                 aws:SecureTransport: false
-    Condition: EnableGuarddutyService
 
   #-----------------------------------------------------------------------------
   # Detectors
@@ -107,7 +105,7 @@ Resources:
     Condition: EnableGuarddutyService
 
   # TODO: Enable exporting logs to the S3 bucket by using managed console or CLI.
-  # Ex. CLI examaple to Enable exporting logs to the S3 bucket.
+  # Ex. CLI examaple to enable exporting logs to the S3 bucket.
   # ❯ aws guardduty create-publishing-destination \
   #   --detector-id <guardduty-detector-id> \
   #   --destination-type S3 \
