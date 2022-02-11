@@ -1,5 +1,9 @@
 [
   {
+    "ParameterKey": "EnableCloudtrailService",
+    "ParameterValue": "false"
+  },
+  {
     "ParameterKey": "CreatePrivateSubnet",
     "ParameterValue": "false"
   },
