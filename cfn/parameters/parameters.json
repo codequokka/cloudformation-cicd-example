@@ -16,7 +16,7 @@
     "ParameterValue": "false"
   },
   {
-    "ParameterKey": "CreatePrivateSubnet",
+    "ParameterKey": "CreateInstances",
     "ParameterValue": "false"
   },
   {

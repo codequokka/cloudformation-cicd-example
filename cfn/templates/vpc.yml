@@ -237,3 +237,29 @@ Resources:
             reason: This security group is not assigned to EC2; it is assigned to ELB for use.
           - id: W28
             reason: Pending
+
+Outputs:
+  PublicSubnet01:
+    Value: !Ref PublicSubnet01
+    Export:
+      Name: PublicSubnet01
+
+  PublicSubnet02:
+    Value: !Ref PublicSubnet02
+    Export:
+      Name: PublicSubnet02
+
+  PrivateSubnet01:
+    Value: !Ref PrivateSubnet01
+    Export:
+      Name: PrivateSubnet01
+
+  PrivateSubnet02:
+    Value: !Ref PrivateSubnet02
+    Export:
+      Name: PrivateSubnet02
+
+  ELBSecurityGroup:
+    Value: !Ref ELBSecurityGroup
+    Export:
+      Name: ELBSecurityGroup
