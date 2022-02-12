@@ -1,27 +1,29 @@
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Create network related resources(VPC, IGW, Subnets, Routetables, EIP, NATGW).
+Description: Create network resources.
 
 Parameters:
-  CreatePrivateSubnet:
+  CreateNatGateways:
     Type: String
-    Default: false
+    Default: true
     AllowedValues:
       - true
       - false
 
 Conditions:
-  CreatePrivateSubnet: !Equals [true, !Ref CreatePrivateSubnet]
+  CreateNatGateways: !Equals [true, !Ref CreateNatGateways]
 
 Resources:
   #-----------------------------------------------------------------------------
-  # VPCs
+  # VPCs, IGWs
   #-----------------------------------------------------------------------------
   VPC01:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
-      EnableDnsHostnames: True
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
       Tags:
         - Key: Name
           Value: VPC01
@@ -31,9 +33,6 @@ Resources:
           - id: W60
             reason: Pending
 
-  #-----------------------------------------------------------------------------
-  # IGWs
-  #-----------------------------------------------------------------------------
   IGW01:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -41,119 +40,200 @@ Resources:
         - Key: Name
           Value: IGW01
 
-  VPC01IGW01Attachment:
+  VPCGWA01:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref VPC01
       InternetGatewayId: !Ref IGW01
 
   #-----------------------------------------------------------------------------
-  # Subnets, Routetables
+  # NatGateways, EIPs
   #-----------------------------------------------------------------------------
-  # For public subnet.
-  VPC01PublicSubnet:
-    Type: AWS::EC2::Subnet
+  NatGateway01:
+    Type: AWS::EC2::NatGateway
     Properties:
-      CidrBlock: 10.0.1.0/24
-      VpcId: !Ref VPC01
+      AllocationId: !GetAtt NatGateway01EIP.AllocationId
+      SubnetId: !Ref PublicSubnet01
       Tags:
         - Key: Name
-          Value: VPC01PublicSubnet
-    DependsOn: VPC01IGW01Attachment
+          Value: NatGateway01
+    Condition: CreateNatGateways
 
-  VPC01PublicSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref VPC01PublicSubnet
-      RouteTableId: !Ref VPC01PublicRouteTable
-
-  VPC01PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC01
-      Tags:
-        - Key: Name
-          Value: VPC01PublicRouteTable
-    DependsOn: VPC01IGW01Attachment
-
-  PublicRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref VPC01PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref IGW01
-    DependsOn: VPC01IGW01Attachment
-
-  # For private subnet.
-  VPC01PrivateSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      CidrBlock: 10.0.2.0/24
-      VpcId: !Ref VPC01
-      Tags:
-        - Key: Name
-          Value: VPC01PrivateSubnet
-    Condition: CreatePrivateSubnet
-
-  VPC01PrivateSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref VPC01PrivateSubnet
-      RouteTableId: !Ref VPC01PrivateRouteTable
-    Condition: CreatePrivateSubnet
-
-  VPC01PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC01
-      Tags:
-        - Key: Name
-          Value: VPC01PrivateRouteTable
-    Condition: CreatePrivateSubnet
-
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref VPC01PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref PublicSubnetNatGateway
-    Condition: CreatePrivateSubnet
-
-  #-----------------------------------------------------------------------------
-  # EIPs
-  #-----------------------------------------------------------------------------
-  PublicSubnetNatGatewayEIP:
+  NatGateway01EIP:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-    Condition: CreatePrivateSubnet
+    Condition: CreateNatGateways
 
-  #-----------------------------------------------------------------------------
-  # NATGWs
-  #-----------------------------------------------------------------------------
-  PublicSubnetNatGateway:
+  NatGateway02:
     Type: AWS::EC2::NatGateway
     Properties:
-      AllocationId: !GetAtt PublicSubnetNatGatewayEIP.AllocationId
-      SubnetId: !Ref VPC01PublicSubnet
+      AllocationId: !GetAtt NatGateway02EIP.AllocationId
+      SubnetId: !Ref PublicSubnet02
       Tags:
         - Key: Name
-          Value: public-subnet-nat-gateway
-    Condition: CreatePrivateSubnet
+          Value: NatGateway02
+    Condition: CreateNatGateways
 
-Outputs:
-  VPC01:
-    Value: !Ref VPC01
-    Export:
-      Name: VPC01
+  NatGateway02EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    Condition: CreateNatGateways
 
-  VPC01PublicSubnet:
-    Value: !Ref VPC01PublicSubnet
-    Export:
-      Name: VPC01PublicSubnet
+  #-----------------------------------------------------------------------------
+  # Subnets
+  #-----------------------------------------------------------------------------
+  PublicSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref AWS::Region
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PublicSubnet01
 
-  VPC01PrivateSubnet:
-    Value: !Ref VPC01PrivateSubnet
-    Export:
-      Name: VPC01PrivateSubnet
-    Condition: CreatePrivateSubnet
+  PublicSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: !Ref AWS::Region
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PublicSubnet02
+
+  PrivateSubnet01:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref AWS::Region
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet01
+
+  PrivateSubnet02:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: !Ref AWS::Region
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet02
+
+  #-----------------------------------------------------------------------------
+  # Routetables
+  #-----------------------------------------------------------------------------
+  PublicSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PublicSubnetRouteTable
+
+  PublicSubnetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW01
+
+  PublicSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet01
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PublicSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet02
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PrivateSubnet01RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet01RouteTable
+
+  PrivateSubnet01Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnet01RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway01
+    Condition: CreateNatGateways
+
+  PrivateSubnet01RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet01
+      RouteTableId: !Ref PrivateSubnet01RouteTable
+
+  PrivateSubnet02RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC01
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet02RouteTable
+
+  PrivateSubnet02Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnet02RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway02
+    Condition: CreateNatGateways
+
+  PrivateSubnet02RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet02
+      RouteTableId: !Ref PrivateSubnet02RouteTable
+
+  #-----------------------------------------------------------------------------
+  # Security groups
+  #-----------------------------------------------------------------------------
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: ELBSecurityGroup
+      GroupDescription: Security group to allow http, https to client host
+      VpcId: !Ref VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: For HTTP
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: For HTTPS
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F1000
+            reason: No restrictions are imposed on egress rules.
+          - id: W2
+            reason: This security group is not assigned to EC2; it is assigned to ELB for use.
+          - id: W9
+            reason: This security group is not assigned to EC2; it is assigned to ELB for use.
+          - id: W28
+            reason: Pending
