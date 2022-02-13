@@ -1,0 +1,28 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create S3 bucket for Ansible.
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Buckets
+  #-----------------------------------------------------------------------------
+  AnsibleBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ansible-${AWS::AccountId}-${AWS::Region}
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Pending
+          - id: W41
+            reason: Pending
+          - id: W51
+            reason: Pending
