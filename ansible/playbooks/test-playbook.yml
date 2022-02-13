@@ -12,5 +12,11 @@
     - name: Install a httpd package
       raw: yum install -y httpd
 
+    - name: Change DocumentRoot permission
+      raw: chmod -R 777 /var/www/html/
+
+    - name: Add index.html
+      raw: echo 'Hello world' > /var/www/html/index.html
+
     - name: Start httpd service
       raw: systemctl start httpd.service

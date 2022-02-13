@@ -98,6 +98,19 @@ jobs:
             --parameter-overrides file://${PARAMETERS_FILE} \
             --no-fail-on-empty-changeset
 
+      - name: Deploy a template for Ansible
+        env:
+          STACK_NAME: AnsibleStack
+          TEMPLATE_FILE: cfn/templates/ansible.yml
+          PARAMETERS_FILE: cfn/parameters/parameters.json
+        run: |
+          aws cloudformation deploy \
+            --stack-name $STACK_NAME \
+            --template-file $TEMPLATE_FILE \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides file://${PARAMETERS_FILE} \
+            --no-fail-on-empty-changeset
+
       # - name: Deploy a template for SSM Patch manager
       #   env:
       #     STACK_NAME: SSMPatchmanagerStack

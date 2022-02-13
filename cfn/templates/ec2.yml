@@ -15,6 +15,38 @@ Conditions:
 
 Resources:
   #-----------------------------------------------------------------------------
+  # Security groups
+  #-----------------------------------------------------------------------------
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: WebSecurityGroup
+      GroupDescription: Security group to allow http, https to client host
+      VpcId: !ImportValue VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: For HTTP
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: For HTTPS
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F1000
+            reason: No restrictions are imposed on egress rules.
+          - id: W2
+            reason: This security group is not assigned to EC2; it is assigned to ELB for use.
+          - id: W9
+            reason: This security group is not assigned to EC2; it is assigned to ELB for use.
+          - id: W28
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
   # Roles
   #-----------------------------------------------------------------------------
   EC2BasicRole:
@@ -41,20 +73,13 @@ Resources:
   #-----------------------------------------------------------------------------
   # Instance profiles
   #-----------------------------------------------------------------------------
-  # For Web01 EC2 instance.
-  Web01EC2InstanceProfile:
+  # For Web EC2 instances.
+  WebEC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - Ref: EC2BasicRole
-      InstanceProfileName: Web01EC2InstanceProfile
-
-  Web02EC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - Ref: EC2BasicRole
-      InstanceProfileName: Web02EC2InstanceProfile
+      InstanceProfileName: WebEC2InstanceProfile
 
   #-----------------------------------------------------------------------------
   # Instances
@@ -68,11 +93,9 @@ Resources:
         - DeviceIndex: 0
           AssociatePublicIpAddress: true
           SubnetId: !ImportValue PublicSubnet01
-          # TODO: Move to private subnet
-          # SubnetId: !ImportValue PrivatewSubnet01
           GroupSet:
-            - !ImportValue ELBSecurityGroup
-      IamInstanceProfile: !Ref Web01EC2InstanceProfile
+            - !Ref WebSecurityGroup
+      IamInstanceProfile: !Ref WebEC2InstanceProfile
       Tags:
         - Key: Name
           Value: Web01
@@ -89,17 +112,96 @@ Resources:
         - DeviceIndex: 0
           AssociatePublicIpAddress: true
           SubnetId: !ImportValue PublicSubnet02
-          # TODO: Move to private subnet
-          # SubnetId: !ImportValue PrivatewSubnet02
           GroupSet:
-            - !ImportValue ELBSecurityGroup
-      IamInstanceProfile: !Ref Web02EC2InstanceProfile
+            - !Ref WebSecurityGroup
+      IamInstanceProfile: !Ref WebEC2InstanceProfile
       Tags:
         - Key: Name
           Value: Web02
         - Key: Patch Group
           Value: Web
     Condition: CreateInstances
+
+  #-----------------------------------------------------------------------------
+  # Target group, Load balancers
+  #-----------------------------------------------------------------------------
+  WebTargetGroup01:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: WebTargetGroup01
+      VpcId: !ImportValue VPC01
+      Protocol: HTTP
+      Port: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckPort: traffic-port
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 10
+      Matcher:
+        HttpCode: 200
+      Tags:
+        - Key: Name
+          Value: WebTargetGroup01
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 300
+        - Key: stickiness.enabled
+          Value: false
+        - Key: stickiness.type
+          Value: lb_cookie
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: 86400
+      Targets:
+        - Id: !Ref Web01EC2Instance
+        - Id: !Ref Web02EC2Instance
+    Condition: CreateInstances
+
+  WebALB01:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: WebALB01
+      Type: application
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: false
+        - Key: idle_timeout.timeout_seconds
+          Value: 60
+      SecurityGroups:
+        - !Ref WebSecurityGroup
+      Subnets:
+        - !ImportValue PublicSubnet01
+        - !ImportValue PublicSubnet02
+      Tags:
+        - Key: Name
+          Value: WebALB01
+    Condition: CreateInstances
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+          - id: W52
+            reason: Pending
+
+  WebALBListener01:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref WebTargetGroup01
+          Type: forward
+      LoadBalancerArn: !Ref WebALB01
+      Port: 80
+      Protocol: HTTP
+    Condition: CreateInstances
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W56
+            reason: Pending
 
 Outputs:
   Web01EC2Instance:
@@ -112,4 +214,10 @@ Outputs:
     Value: !Ref Web02EC2Instance
     Export:
       Name: Web02EC2Instance
+    Condition: CreateInstances
+
+  WebALB01DNSName:
+    Value: !GetAtt WebALB01.DNSName
+    Export:
+      Name: WebALB01DNSName
     Condition: CreateInstances
