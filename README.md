@@ -9,21 +9,25 @@ Cloudformation CI/CD example
 Templates
 ---------
 ### Overview
-|Template|Stack|Description|
-|--------|-----|-----------|
-|[initial.yml](cfn/templates/initial.yml)|InitialStack|Create a role for Github Actions CD.|
-|[kms.yml](cfn/templates/kms.yml)|KMSStack|Create key for common usage.|
-|[config.yml](cfn/templates/config.yml)|ConfigStack|Enable Config service.|
-|[cloudtrail.yml](cfn/templates/cloudtrail.yml)|CloudtrailStack|Enable Cloudtrail service.|
-|[guardduty.yml](cfn/templates/guardduty.yml)|GuarddutyStack|Enable Guardduty service.|
-|[vpc.yml](cfn/templates/vpc.yml)|VPCStack|Create network related resources(VPC, IGW, Subnets, Routetables, EIP, NATGW).|
-|[ec2.yml](cfn/templates/ec2.yml)|EC2Stack|Create EC2 instances.|
-|[ssm-patchmanager.yml](cfn/templates/ssm-patchmanager.yml)|SSMPatchmanagerStack|Enable SSM Patch manager.|
+|Template|Stack|Description|Deploy method|
+|--------|-----|-----------|-------------|
+|[initial.yml](cfn/templates/initial.yml)|InitialStack|Create a role for Github Actions CD.|Manual|
+|[iam.yml](cfn/templates/iam.yml)|IAMStack|Create IAM users.|Manual|
+|[kms.yml](cfn/templates/kms.yml)|KMSStack|Create the key for common usage.|Github Actions|
+|[config.yml](cfn/templates/config.yml)|ConfigStack|Enable Config service.|Github Actions
+|[cloudtrail.yml](cfn/templates/cloudtrail.yml)|CloudtrailStack|Enable Cloudtrail service.|Github Actions
+|[guardduty.yml](cfn/templates/guardduty.yml)|GuarddutyStack|Enable Guardduty service.|Github Actions
+|[vpc.yml](cfn/templates/vpc.yml)|VPCStack|Create network related resources(VPC, IGW, Subnets, Routetables, EIP, NATGW).|Github Actions
+|[ec2.yml](cfn/templates/ec2.yml)|EC2Stack|Create EC2 instances.|Github Actions
+|[ssm-patchmanager.yml](cfn/templates/ssm-patchmanager.yml)|SSMPatchmanagerStack|Enable SSM Patch manager.|Github Actions|
 
 
 ### Resouces created by templates
 - initial.yml  
 ![initial.yml](./docs/imgs/drawio/initial.yml.png)
+
+- iam.yml  
+![iam.yml](./docs/imgs/drawio/iam.yml.png)
 
 - kms.yml  
 ![kms.yml](./docs/imgs/drawio/kms.yml.png)

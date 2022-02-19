@@ -1,0 +1,217 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Create IAM users.
+
+Parameters:
+  # DefaultUserPassword:
+  #   Type: String
+  #   NoEcho: true
+
+  DefaultAdminUserName:
+    Type: String
+    NoEcho: true
+
+  DefaultIPAddress:
+    Type: String
+    Default: 0.0.0.0/32
+    NoEcho: true
+
+  CreateAccessKey:
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+Conditions:
+  CreateAccessKey: !Equals [true, !Ref CreateAccessKey]
+
+Resources:
+  #-----------------------------------------------------------------------------
+  # Policies
+  #-----------------------------------------------------------------------------
+  SetOwnCredentialsPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: SetOwnCredentialsPolicy
+      Description: Policy to set own credentials(password, MFA, etc).
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - iam:ChangePassword
+              - iam:CreateAccessKey
+              - iam:CreateVirtualMFADevice
+              - iam:DeactivateMFADevice
+              - iam:DeleteAccessKey
+              - iam:DeleteVirtualMFADevice
+              - iam:EnableMFADevice
+              - iam:GetAccountPasswordPolicy
+              - iam:UpdateAccessKey
+              - iam:UpdateSigningCertificate
+              - iam:UploadSigningCertificate
+              - iam:UpdateLoginProfile
+              - iam:ResyncMFADevice
+            Resource:
+              - !Sub arn:aws:iam::${AWS::AccountId}:user/${!aws:username}
+              - !Sub arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  ForceMFAPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: ForceMFAPolicy
+      Description: Policy to deny all actions without IAM if MFA is not activated.
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Deny
+            NotAction: iam:*
+            Resource: "*"
+            Condition:
+              BoolIfExists:
+                aws:MultiFactorAuthPresent: false
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  IPRestrictionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: IPRestrictionPolicy
+      Description: Policy to deny all actions from non specified IP address.
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Deny
+            Action: "*"
+            Resource: "*"
+            Condition:
+              NotIpAddress:
+                aws:SourceIp: !Ref DefaultIPAddress
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # Groups
+  #-----------------------------------------------------------------------------
+  # For All users.
+  AllGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: AllGroup
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
+        - !Ref SetOwnCredentialsPolicy
+        - !Ref IPRestrictionPolicy
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  # For Administrator users.
+  AdminGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: AdminGroup
+      ManagedPolicyArns:
+        - !Ref ForceMFAPolicy
+      Policies:
+        - PolicyName: AssumeRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !GetAtt AdminRole.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  #-----------------------------------------------------------------------------
+  # Roles
+  #-----------------------------------------------------------------------------
+  # For Administrator users.
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AdminRole
+      Description: Role for Administrator users
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+            Condition:
+              Bool:
+                aws:MultiFactorAuthPresent: true
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      MaxSessionDuration: 43200
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+          - id: W43
+            reason: This role can be only used by specified user with MFA is activated
+
+  #-----------------------------------------------------------------------------
+  # Users
+  #-----------------------------------------------------------------------------
+  # Administrator users.
+  Admin01:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref DefaultAdminUserName
+      LoginProfile:
+        Password: !Sub "{{resolve:secretsmanager:${Admin01Password}:SecretString:password::}}"
+        PasswordResetRequired: true
+      Groups:
+        - !Ref AllGroup
+        - !Ref AdminGroup
+
+  Admin01Password:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: admin01-passowrd
+      KmsKeyId: !ImportValue CommonKeyArn
+      GenerateSecretString:
+        GenerateStringKey: password
+        PasswordLength: 32
+        SecretStringTemplate: "{}"
+
+  #-----------------------------------------------------------------------------
+  # Access keys, Access key secrets
+  #-----------------------------------------------------------------------------
+  # Admin01 user.
+  Admin01AccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref Admin01
+    Condition: CreateAccessKey
+
+  Admin01AccessKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: admin01-credentials
+      KmsKeyId: !ImportValue CommonKeyArn
+      SecretString: !Sub '{"accessKeyId":"${Admin01AccessKey}","secretAccessKey":"${Admin01AccessKey.SecretAccessKey}"}'
+    Condition: CreateAccessKey
