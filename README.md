@@ -23,28 +23,29 @@ Templates
 
 ### Resouces created by templates
 - initial.yml  
-![initial.yml](./docs/imgs/drawio/initial.png)
+![initial.yml](./docs/imgs/drawio/initial.yml.png)
 
-- kms.yml
-![](./docs/imgs/kms.jpg?raw=true "KMS")
+- kms.yml  
+![kms.yml](./docs/imgs/drawio/kms.yml.png)
 
-- config.yml
-![](./docs/imgs/config.jpg?raw=true "Config")
+- config.yml  
+![config.yml](./docs/imgs/drawio/config.yml.png)
 
-- cloudtrail.yml
-![](./docs/imgs/cloudtrail.jpg?raw=true "Cloudtrail")
+- cloudtrail.yml  
+![cloudtrail.yml](./docs/imgs/drawio/cloudtrail.yml.png)
 
-- guardduty.yml
-![](./docs/imgs/guardduty.jpg?raw=true "Guardduty")
+- guardduty.yml  
+![guardduty.yml](./docs/imgs/drawio/guardduty.yml.png)
 
-- vpc.yml
-![](./docs/imgs/vpc.jpg?raw=true "VPC")
+- vpc.yml  
+![vpc.yml](./docs/imgs/drawio/vpc.yml.png)
 
-- ec2.yml
-![](./docs/imgs/ec2.jpg?raw=true "EC2")
+- ec2.yml  
+![ec2.yml](./docs/imgs/drawio/ec2.yml.png)
 
-- ssm-patchmanager.yml
-![](./docs/imgs/ssm-patchmanager.jpg?raw=true "SSM Patch Manager")
+- ssm-patchmanager.yml  
+![ssm-patchmanager.yml](./docs/imgs/drawio/ssm-patchmanager.yml.png)
+
 
 Usage
 -----
