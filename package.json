@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@mhlabs/cfn-diagram": "^1.1.33"
+  }
+}
