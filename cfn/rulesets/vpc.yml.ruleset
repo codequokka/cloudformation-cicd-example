@@ -1,0 +1,51 @@
+let aws_ec2_routetable_resources = Resources.*[ Type == 'AWS::EC2::RouteTable' ]
+rule aws_ec2_routetable when %aws_ec2_routetable_resources !empty {
+  %aws_ec2_routetable_resources.Properties.Tags IN [[{"Key":"Name","Value":"PublicSubnetRouteTable"}], [{"Key":"Name","Value":"PrivateSubnet02RouteTable"}], [{"Key":"Name","Value":"PrivateSubnet01RouteTable"}]]
+  %aws_ec2_routetable_resources.Properties.VpcId == "VPC01"
+}
+let aws_ec2_route_resources = Resources.*[ Type == 'AWS::EC2::Route' ]
+rule aws_ec2_route when %aws_ec2_route_resources !empty {
+  %aws_ec2_route_resources.Properties.DestinationCidrBlock == "0.0.0.0/0"
+  %aws_ec2_route_resources.Properties.NatGatewayId IN ["NatGateway01", "NatGateway02"]
+  %aws_ec2_route_resources.Properties.RouteTableId IN ["PrivateSubnet02RouteTable", "PrivateSubnet01RouteTable", "PublicSubnetRouteTable"]
+  %aws_ec2_route_resources.Properties.GatewayId == "IGW01"
+}
+let aws_ec2_vpc_resources = Resources.*[ Type == 'AWS::EC2::VPC' ]
+rule aws_ec2_vpc when %aws_ec2_vpc_resources !empty {
+  %aws_ec2_vpc_resources.Properties.CidrBlock == "10.0.0.0/16"
+  %aws_ec2_vpc_resources.Properties.Tags == [{"Key":"Name","Value":"VPC01"}]
+  %aws_ec2_vpc_resources.Properties.InstanceTenancy == "default"
+  %aws_ec2_vpc_resources.Properties.EnableDnsSupport == true
+  %aws_ec2_vpc_resources.Properties.EnableDnsHostnames == true
+}
+let aws_ec2_vpcgatewayattachment_resources = Resources.*[ Type == 'AWS::EC2::VPCGatewayAttachment' ]
+rule aws_ec2_vpcgatewayattachment when %aws_ec2_vpcgatewayattachment_resources !empty {
+  %aws_ec2_vpcgatewayattachment_resources.Properties.InternetGatewayId == "IGW01"
+  %aws_ec2_vpcgatewayattachment_resources.Properties.VpcId == "VPC01"
+}
+let aws_ec2_subnetroutetableassociation_resources = Resources.*[ Type == 'AWS::EC2::SubnetRouteTableAssociation' ]
+rule aws_ec2_subnetroutetableassociation when %aws_ec2_subnetroutetableassociation_resources !empty {
+  %aws_ec2_subnetroutetableassociation_resources.Properties.SubnetId IN ["PublicSubnet01", "PublicSubnet02", "PrivateSubnet01", "PrivateSubnet02"]
+  %aws_ec2_subnetroutetableassociation_resources.Properties.RouteTableId IN ["PrivateSubnet02RouteTable", "PrivateSubnet01RouteTable", "PublicSubnetRouteTable"]
+}
+let aws_ec2_natgateway_resources = Resources.*[ Type == 'AWS::EC2::NatGateway' ]
+rule aws_ec2_natgateway when %aws_ec2_natgateway_resources !empty {
+  %aws_ec2_natgateway_resources.Properties.SubnetId IN ["PublicSubnet01", "PublicSubnet02"]
+  %aws_ec2_natgateway_resources.Properties.Tags IN [[{"Key":"Name","Value":"NatGateway01"}], [{"Key":"Name","Value":"NatGateway02"}]]
+  %aws_ec2_natgateway_resources.Properties.AllocationId IN ["NatGateway01EIP.AllocationId", "NatGateway02EIP.AllocationId"]
+}
+let aws_ec2_eip_resources = Resources.*[ Type == 'AWS::EC2::EIP' ]
+rule aws_ec2_eip when %aws_ec2_eip_resources !empty {
+  %aws_ec2_eip_resources.Properties.Domain == "vpc"
+}
+let aws_ec2_internetgateway_resources = Resources.*[ Type == 'AWS::EC2::InternetGateway' ]
+rule aws_ec2_internetgateway when %aws_ec2_internetgateway_resources !empty {
+  %aws_ec2_internetgateway_resources.Properties.Tags == [{"Key":"Name","Value":"IGW01"}]
+}
+let aws_ec2_subnet_resources = Resources.*[ Type == 'AWS::EC2::Subnet' ]
+rule aws_ec2_subnet when %aws_ec2_subnet_resources !empty {
+  %aws_ec2_subnet_resources.Properties.Tags IN [[{"Key":"Name","Value":"PrivateSubnet02"}], [{"Key":"Name","Value":"PublicSubnet02"}], [{"Key":"Name","Value":"PublicSubnet01"}], [{"Key":"Name","Value":"PrivateSubnet01"}]]
+  %aws_ec2_subnet_resources.Properties.AvailabilityZone IN [[0,{"Fn::GetAZs":"AWS::Region"}], [1,{"Fn::GetAZs":"AWS::Region"}]]
+  %aws_ec2_subnet_resources.Properties.CidrBlock IN ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24", "10.0.4.0/24"]
+  %aws_ec2_subnet_resources.Properties.VpcId == "VPC01"
+}

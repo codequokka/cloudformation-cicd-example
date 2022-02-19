@@ -1,5 +1,0 @@
-let aws_guardduty_detector_resources = Resources.*[ Type == 'AWS::GuardDuty::Detector' ]
-rule aws_guardduty_detector when %aws_guardduty_detector_resources !empty {
-  %aws_guardduty_detector_resources.Properties.Enable == true
-  %aws_guardduty_detector_resources.Properties.FindingPublishingFrequency == "SIX_HOURS"
-}

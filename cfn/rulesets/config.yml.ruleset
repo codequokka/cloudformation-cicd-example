@@ -1,0 +1,30 @@
+let aws_iam_role_resources = Resources.*[ Type == 'AWS::IAM::Role' ]
+rule aws_iam_role when %aws_iam_role_resources !empty {
+  %aws_iam_role_resources.Properties.Policies == [{"PolicyName":"PutLogsPolicy","PolicyDocument":{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:PutObject","s3:PutObjectAcl"],"Resource":["",["ConfigServiceBucket.Arn","/AWSLogs/${AWS::AccountId}/*"]],"Condition":{"StringLike":{"s3:x-amz-acl":"bucket-owner-full-control"}}},{"Effect":"Allow","Action":["s3:GetBucketAcl"],"Resource":"ConfigServiceBucket.Arn"}]}}]
+  %aws_iam_role_resources.Properties.ManagedPolicyArns == ["arn:aws:iam::aws:policy/service-role/AWSConfigRole"]
+  %aws_iam_role_resources.Properties.AssumeRolePolicyDocument == {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"config.amazonaws.com"},"Action":"sts:AssumeRole"}]}
+  %aws_iam_role_resources.Properties.Description == "Role for Config to put logs."
+  %aws_iam_role_resources.Properties.RoleName == "ConfigServiceRole"
+}
+let aws_config_configurationrecorder_resources = Resources.*[ Type == 'AWS::Config::ConfigurationRecorder' ]
+rule aws_config_configurationrecorder when %aws_config_configurationrecorder_resources !empty {
+  %aws_config_configurationrecorder_resources.Properties.RoleARN == "ConfigServiceRole.Arn"
+  %aws_config_configurationrecorder_resources.Properties.RecordingGroup == {"AllSupported":"True","IncludeGlobalResourceTypes":"True"}
+}
+let aws_config_deliverychannel_resources = Resources.*[ Type == 'AWS::Config::DeliveryChannel' ]
+rule aws_config_deliverychannel when %aws_config_deliverychannel_resources !empty {
+  %aws_config_deliverychannel_resources.Properties.ConfigSnapshotDeliveryProperties == {"DeliveryFrequency":"TwentyFour_Hours"}
+  %aws_config_deliverychannel_resources.Properties.S3KmsKeyArn == "CommonKeyArn"
+  %aws_config_deliverychannel_resources.Properties.S3BucketName == "ConfigServiceBucket"
+}
+let aws_s3_bucketpolicy_resources = Resources.*[ Type == 'AWS::S3::BucketPolicy' ]
+rule aws_s3_bucketpolicy when %aws_s3_bucketpolicy_resources !empty {
+  %aws_s3_bucketpolicy_resources.Properties.PolicyDocument == {"Version":"2012-10-17","Statement":[{"Sid":"Allow Config service to get bucket ACL","Effect":"Allow","Principal":{"Service":"config.amazonaws.com"},"Action":"s3:GetBucketAcl","Resource":"ConfigServiceBucket.Arn"},{"Sid":"Allow Config service to check bucket existence","Effect":"Allow","Principal":{"Service":"config.amazonaws.com"},"Action":"s3:ListBucket","Resource":"ConfigServiceBucket.Arn"},{"Sid":"Allow Config service to put logs","Effect":"Allow","Principal":{"Service":"config.amazonaws.com"},"Action":"s3:PutObject","Resource":["",["ConfigServiceBucket.Arn","/AWSLogs/${AWS::AccountId}/Config/*"]],"Condition":{"StringEquals":{"s3:x-amz-acl":"bucket-owner-full-control"}}}]}
+  %aws_s3_bucketpolicy_resources.Properties.Bucket == "ConfigServiceBucket"
+}
+let aws_s3_bucket_resources = Resources.*[ Type == 'AWS::S3::Bucket' ]
+rule aws_s3_bucket when %aws_s3_bucket_resources !empty {
+  %aws_s3_bucket_resources.Properties.AccessControl == "Private"
+  %aws_s3_bucket_resources.Properties.PublicAccessBlockConfiguration == {"BlockPublicAcls":"True","BlockPublicPolicy":"True","IgnorePublicAcls":"True","RestrictPublicBuckets":"True"}
+  %aws_s3_bucket_resources.Properties.BucketName == "config-service-${AWS::AccountId}-${AWS::Region}"
+}

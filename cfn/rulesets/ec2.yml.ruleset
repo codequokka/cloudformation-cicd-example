@@ -1,0 +1,62 @@
+let aws_elasticloadbalancingv2_listener_resources = Resources.*[ Type == 'AWS::ElasticLoadBalancingV2::Listener' ]
+rule aws_elasticloadbalancingv2_listener when %aws_elasticloadbalancingv2_listener_resources !empty {
+  %aws_elasticloadbalancingv2_listener_resources.Properties.Port == 80
+  %aws_elasticloadbalancingv2_listener_resources.Properties.Protocol == "HTTP"
+  %aws_elasticloadbalancingv2_listener_resources.Properties.DefaultActions == [{"TargetGroupArn":"WebTargetGroup01","Type":"forward"}]
+  %aws_elasticloadbalancingv2_listener_resources.Properties.LoadBalancerArn == "WebALB01"
+}
+let aws_iam_role_resources = Resources.*[ Type == 'AWS::IAM::Role' ]
+rule aws_iam_role when %aws_iam_role_resources !empty {
+  %aws_iam_role_resources.Properties.ManagedPolicyArns == ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
+  %aws_iam_role_resources.Properties.RoleName == "EC2BasicRole"
+  %aws_iam_role_resources.Properties.AssumeRolePolicyDocument == {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":["ec2.amazonaws.com"]},"Action":["sts:AssumeRole"]}]}
+}
+let aws_iam_instanceprofile_resources = Resources.*[ Type == 'AWS::IAM::InstanceProfile' ]
+rule aws_iam_instanceprofile when %aws_iam_instanceprofile_resources !empty {
+  %aws_iam_instanceprofile_resources.Properties.Roles == [{"Ref":"EC2BasicRole"}]
+  %aws_iam_instanceprofile_resources.Properties.InstanceProfileName == "WebEC2InstanceProfile"
+}
+let aws_elasticloadbalancingv2_targetgroup_resources = Resources.*[ Type == 'AWS::ElasticLoadBalancingV2::TargetGroup' ]
+rule aws_elasticloadbalancingv2_targetgroup when %aws_elasticloadbalancingv2_targetgroup_resources !empty {
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.HealthCheckProtocol == "HTTP"
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.Port == 80
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.Targets == [{"Id":"Web01EC2Instance"},{"Id":"Web02EC2Instance"}]
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.UnhealthyThresholdCount == 2
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.HealthCheckPath == "/"
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.HealthCheckPort == "traffic-port"
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.VpcId == "VPC01"
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.Matcher == {"HttpCode":200}
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.Name == "WebTargetGroup01"
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.HealthCheckIntervalSeconds == 10
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.HealthyThresholdCount == 2
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.TargetGroupAttributes == [{"Key":"deregistration_delay.timeout_seconds","Value":300},{"Key":"stickiness.enabled","Value":false},{"Key":"stickiness.type","Value":"lb_cookie"},{"Key":"stickiness.lb_cookie.duration_seconds","Value":86400}]
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.HealthCheckTimeoutSeconds == 5
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.Protocol == "HTTP"
+  %aws_elasticloadbalancingv2_targetgroup_resources.Properties.Tags == [{"Key":"Name","Value":"WebTargetGroup01"}]
+}
+let aws_ec2_securitygroup_resources = Resources.*[ Type == 'AWS::EC2::SecurityGroup' ]
+rule aws_ec2_securitygroup when %aws_ec2_securitygroup_resources !empty {
+  %aws_ec2_securitygroup_resources.Properties.GroupDescription == "Security group to allow http, https to client host"
+  %aws_ec2_securitygroup_resources.Properties.GroupName == "WebSecurityGroup"
+  %aws_ec2_securitygroup_resources.Properties.SecurityGroupIngress == [{"IpProtocol":"tcp","FromPort":80,"ToPort":80,"CidrIp":"0.0.0.0/0","Description":"For HTTP"},{"IpProtocol":"tcp","FromPort":443,"ToPort":443,"CidrIp":"0.0.0.0/0","Description":"For HTTPS"}]
+  %aws_ec2_securitygroup_resources.Properties.VpcId == "VPC01"
+}
+let aws_ec2_instance_resources = Resources.*[ Type == 'AWS::EC2::Instance' ]
+rule aws_ec2_instance when %aws_ec2_instance_resources !empty {
+  %aws_ec2_instance_resources.Properties.Tags IN [[{"Key":"Name","Value":"Web01"},{"Key":"Patch Group","Value":"Web"}], [{"Key":"Name","Value":"Web02"},{"Key":"Patch Group","Value":"Web"}]]
+  %aws_ec2_instance_resources.Properties.IamInstanceProfile == "WebEC2InstanceProfile"
+  %aws_ec2_instance_resources.Properties.InstanceType == "t2.micro"
+  %aws_ec2_instance_resources.Properties.NetworkInterfaces IN [[{"DeviceIndex":0,"AssociatePublicIpAddress":true,"SubnetId":"PublicSubnet02","GroupSet":["WebSecurityGroup"]}], [{"DeviceIndex":0,"AssociatePublicIpAddress":true,"SubnetId":"PublicSubnet01","GroupSet":["WebSecurityGroup"]}]]
+  %aws_ec2_instance_resources.Properties.ImageId == "ami-0218d08a1f9dac831"
+}
+let aws_elasticloadbalancingv2_loadbalancer_resources = Resources.*[ Type == 'AWS::ElasticLoadBalancingV2::LoadBalancer' ]
+rule aws_elasticloadbalancingv2_loadbalancer when %aws_elasticloadbalancingv2_loadbalancer_resources !empty {
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.Name == "WebALB01"
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.Type == "application"
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.Subnets == ["PublicSubnet01","PublicSubnet02"]
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.Scheme == "internet-facing"
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.LoadBalancerAttributes == [{"Key":"deletion_protection.enabled","Value":false},{"Key":"idle_timeout.timeout_seconds","Value":60}]
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.SecurityGroups == ["WebSecurityGroup"]
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.Tags == [{"Key":"Name","Value":"WebALB01"}]
+  %aws_elasticloadbalancingv2_loadbalancer_resources.Properties.IpAddressType == "ipv4"
+}

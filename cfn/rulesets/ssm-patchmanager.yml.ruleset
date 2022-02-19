@@ -1,0 +1,45 @@
+let aws_ssm_maintenancewindow_resources = Resources.*[ Type == 'AWS::SSM::MaintenanceWindow' ]
+rule aws_ssm_maintenancewindow when %aws_ssm_maintenancewindow_resources !empty {
+  %aws_ssm_maintenancewindow_resources.Properties.Name == "patch-scan-maintenance-window"
+  %aws_ssm_maintenancewindow_resources.Properties.Schedule == "cron(0 0 0 ? * * *)"
+  %aws_ssm_maintenancewindow_resources.Properties.Cutoff == 0
+  %aws_ssm_maintenancewindow_resources.Properties.Duration == 1
+  %aws_ssm_maintenancewindow_resources.Properties.ScheduleTimezone == "Asia/Tokyo"
+  %aws_ssm_maintenancewindow_resources.Properties.AllowUnassociatedTargets == true
+}
+let aws_ssm_patchbaseline_resources = Resources.*[ Type == 'AWS::SSM::PatchBaseline' ]
+rule aws_ssm_patchbaseline when %aws_ssm_patchbaseline_resources !empty {
+  %aws_ssm_patchbaseline_resources.Properties.ApprovalRules == {"PatchRules":[{"PatchFilterGroup":{"PatchFilters":[{"Key":"CLASSIFICATION","Values":["Security"]},{"Key":"SEVERITY","Values":["Critical","Important"]}]},"ApproveAfterDays":7},{"PatchFilterGroup":{"PatchFilters":[{"Key":"CLASSIFICATION","Values":["Bugfix"]}]},"ApproveAfterDays":7}]}
+  %aws_ssm_patchbaseline_resources.Properties.Name IN ["DBPatchBaseline", "WebPatchBaseline"]
+  %aws_ssm_patchbaseline_resources.Properties.PatchGroups IN [["Web"], ["DB"]]
+  %aws_ssm_patchbaseline_resources.Properties.OperatingSystem == "AMAZON_LINUX_2"
+}
+let aws_ssm_association_resources = Resources.*[ Type == 'AWS::SSM::Association' ]
+rule aws_ssm_association when %aws_ssm_association_resources !empty {
+  %aws_ssm_association_resources.Properties.Targets == [{"Key":"tag:Patch Group","Values":["Web","DB"]}]
+  %aws_ssm_association_resources.Properties.Name == "AWS-RunPatchBaseline"
+  %aws_ssm_association_resources.Properties.AssociationName == "patch-scan-association"
+  %aws_ssm_association_resources.Properties.WaitForSuccessTimeoutSeconds == 300
+  %aws_ssm_association_resources.Properties.Parameters == {"Operation":["Scan"],"RebootOption":["NoReboot"]}
+}
+let aws_ssm_maintenancewindowtask_resources = Resources.*[ Type == 'AWS::SSM::MaintenanceWindowTask' ]
+rule aws_ssm_maintenancewindowtask when %aws_ssm_maintenancewindowtask_resources !empty {
+  %aws_ssm_maintenancewindowtask_resources.Properties.TaskParameters == {}
+  %aws_ssm_maintenancewindowtask_resources.Properties.ServiceRoleArn == "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ssm.amazonaws.com/AWSServiceRoleForAmazonSSM"
+  %aws_ssm_maintenancewindowtask_resources.Properties.Targets == [{"Key":"WindowTargetIds","Values":["PatchScanMaintenanceWindowTarget"]}]
+  %aws_ssm_maintenancewindowtask_resources.Properties.MaxErrors == 0
+  %aws_ssm_maintenancewindowtask_resources.Properties.MaxConcurrency == 50
+  %aws_ssm_maintenancewindowtask_resources.Properties.TaskType == "RUN_COMMAND"
+  %aws_ssm_maintenancewindowtask_resources.Properties.TaskArn == "AWS-RunPatchBaseline"
+  %aws_ssm_maintenancewindowtask_resources.Properties.Priority == 1
+  %aws_ssm_maintenancewindowtask_resources.Properties.TaskInvocationParameters == {"MaintenanceWindowRunCommandParameters":{"Parameters":{"Operation":["Scan"],"SnapshotId":["{{WINDOW_EXECUTION_ID}}"]},"TimeoutSeconds":600}}
+  %aws_ssm_maintenancewindowtask_resources.Properties.Name == "patch-scan-maintenance-windowtask"
+  %aws_ssm_maintenancewindowtask_resources.Properties.WindowId == "PatchScanMaintenanceWindow"
+}
+let aws_ssm_maintenancewindowtarget_resources = Resources.*[ Type == 'AWS::SSM::MaintenanceWindowTarget' ]
+rule aws_ssm_maintenancewindowtarget when %aws_ssm_maintenancewindowtarget_resources !empty {
+  %aws_ssm_maintenancewindowtarget_resources.Properties.ResourceType == "INSTANCE"
+  %aws_ssm_maintenancewindowtarget_resources.Properties.Targets == [{"Key":"tag:Patch Group","Values":["Web","DB"]}]
+  %aws_ssm_maintenancewindowtarget_resources.Properties.Name == "patch-scan-maintenance-window-target"
+  %aws_ssm_maintenancewindowtarget_resources.Properties.WindowId == "PatchScanMaintenanceWindow"
+}
