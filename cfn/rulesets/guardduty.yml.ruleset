@@ -1,0 +1,16 @@
+let aws_s3_bucketpolicy_resources = Resources.*[ Type == 'AWS::S3::BucketPolicy' ]
+rule aws_s3_bucketpolicy when %aws_s3_bucketpolicy_resources !empty {
+  %aws_s3_bucketpolicy_resources.Properties.PolicyDocument == {"Version":"2012-10-17","Statement":[{"Sid":"Allow Guardduty service to get bucket ACL","Effect":"Allow","Principal":{"Service":"guardduty.amazonaws.com"},"Action":"s3:GetBucketLocation","Resource":"GuarddutyServiceBucket.Arn"},{"Sid":"Allow Guardduty service to put logs","Effect":"Allow","Principal":{"Service":"guardduty.amazonaws.com"},"Action":"s3:PutObject","Resource":["",["GuarddutyServiceBucket.Arn","/*"]]},{"Sid":"Deny Guardduty service to put unencrypted logs","Effect":"Deny","Principal":{"Service":"guardduty.amazonaws.com"},"Action":"s3:PutObject","Resource":["",["GuarddutyServiceBucket.Arn","/*"]],"Condition":{"StringNotEquals":{"s3:x-amz-server-side-encryption":"aws:kms"}}},{"Sid":"Deny Guardduty service to put logs with incorrect encryption header","Effect":"Deny","Principal":{"Service":"guardduty.amazonaws.com"},"Action":"s3:PutObject","Resource":["",["GuarddutyServiceBucket.Arn","/*"]],"Condition":{"StringNotEquals":{"s3:x-amz-server-side-encryption-aws-kms-key-id":"CommonKeyArn"}}},{"Sid":"Deny non-HTTPS access","Effect":"Deny","Principal":"*","Action":"s3:*","Resource":["",["GuarddutyServiceBucket.Arn","/*"]],"Condition":{"Bool":{"aws:SecureTransport":false}}}]}
+  %aws_s3_bucketpolicy_resources.Properties.Bucket == "GuarddutyServiceBucket"
+}
+let aws_s3_bucket_resources = Resources.*[ Type == 'AWS::S3::Bucket' ]
+rule aws_s3_bucket when %aws_s3_bucket_resources !empty {
+  %aws_s3_bucket_resources.Properties.BucketName == "guardduty-service-${AWS::AccountId}-${AWS::Region}"
+  %aws_s3_bucket_resources.Properties.AccessControl == "Private"
+  %aws_s3_bucket_resources.Properties.PublicAccessBlockConfiguration == {"BlockPublicAcls":"True","BlockPublicPolicy":"True","IgnorePublicAcls":"True","RestrictPublicBuckets":"True"}
+}
+let aws_guardduty_detector_resources = Resources.*[ Type == 'AWS::GuardDuty::Detector' ]
+rule aws_guardduty_detector when %aws_guardduty_detector_resources !empty {
+  %aws_guardduty_detector_resources.Properties.FindingPublishingFrequency == "SIX_HOURS"
+  %aws_guardduty_detector_resources.Properties.Enable == true
+}

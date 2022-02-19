@@ -1,0 +1,22 @@
+let aws_cloudtrail_trail_resources = Resources.*[ Type == 'AWS::CloudTrail::Trail' ]
+rule aws_cloudtrail_trail when %aws_cloudtrail_trail_resources !empty {
+  %aws_cloudtrail_trail_resources.Properties.TrailName == "default-trail"
+  %aws_cloudtrail_trail_resources.Properties.IncludeGlobalServiceEvents == true
+  %aws_cloudtrail_trail_resources.Properties.IsMultiRegionTrail == true
+  %aws_cloudtrail_trail_resources.Properties.S3BucketName == "CloudtrailServiceBucket"
+  %aws_cloudtrail_trail_resources.Properties.KMSKeyId == "CommonKeyArn"
+  %aws_cloudtrail_trail_resources.Properties.IsLogging == true
+  %aws_cloudtrail_trail_resources.Properties.EventSelectors == [{"IncludeManagementEvents":true,"DataResources":[{"Type":"AWS::S3::Object"}],"ReadWriteType":"All"}]
+  %aws_cloudtrail_trail_resources.Properties.EnableLogFileValidation == true
+}
+let aws_s3_bucket_resources = Resources.*[ Type == 'AWS::S3::Bucket' ]
+rule aws_s3_bucket when %aws_s3_bucket_resources !empty {
+  %aws_s3_bucket_resources.Properties.BucketName == "cloudtrail-service-${AWS::AccountId}-${AWS::Region}"
+  %aws_s3_bucket_resources.Properties.AccessControl == "Private"
+  %aws_s3_bucket_resources.Properties.PublicAccessBlockConfiguration == {"BlockPublicAcls":"True","BlockPublicPolicy":"True","IgnorePublicAcls":"True","RestrictPublicBuckets":"True"}
+}
+let aws_s3_bucketpolicy_resources = Resources.*[ Type == 'AWS::S3::BucketPolicy' ]
+rule aws_s3_bucketpolicy when %aws_s3_bucketpolicy_resources !empty {
+  %aws_s3_bucketpolicy_resources.Properties.PolicyDocument == {"Version":"2012-10-17","Statement":[{"Sid":"Allow Cloudtrail service to get bucket ACL","Effect":"Allow","Principal":{"Service":"cloudtrail.amazonaws.com"},"Action":"s3:GetBucketAcl","Resource":"CloudtrailServiceBucket.Arn"},{"Sid":"Allow Cloudtrail service to put logs","Effect":"Allow","Principal":{"Service":"cloudtrail.amazonaws.com"},"Action":"s3:PutObject","Resource":["",["CloudtrailServiceBucket.Arn","/AWSLogs/${AWS::AccountId}/*"]],"Condition":{"StringEquals":{"s3:x-amz-acl":"bucket-owner-full-control"}}}]}
+  %aws_s3_bucketpolicy_resources.Properties.Bucket == "CloudtrailServiceBucket"
+}

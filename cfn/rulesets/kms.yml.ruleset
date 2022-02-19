@@ -1,0 +1,12 @@
+let aws_kms_alias_resources = Resources.*[ Type == 'AWS::KMS::Alias' ]
+rule aws_kms_alias when %aws_kms_alias_resources !empty {
+  %aws_kms_alias_resources.Properties.AliasName == "alias/common-key"
+  %aws_kms_alias_resources.Properties.TargetKeyId == "CommonKey"
+}
+let aws_kms_key_resources = Resources.*[ Type == 'AWS::KMS::Key' ]
+rule aws_kms_key when %aws_kms_key_resources !empty {
+  %aws_kms_key_resources.Properties.Enabled == true
+  %aws_kms_key_resources.Properties.KeyPolicy == {"Version":"2012-10-17","Statement":[{"Sid":"Enable IAM policies","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::${AWS::AccountId}:root"},"Action":"kms:*","Resource":"*"},{"Sid":"Allow Cloudtrail service to use the key","Effect":"Allow","Principal":{"Service":"cloudtrail.amazonaws.com"},"Action":"kms:GenerateDataKey*","Resource":"*"},{"Sid":"Allow Guardduty service to use the key","Effect":"Allow","Principal":{"Service":"guardduty.amazonaws.com"},"Action":"kms:GenerateDataKey","Resource":"*"},{"Sid":"Allow Config service to use the key","Effect":"Allow","Principal":{"Service":"config.amazonaws.com"},"Action":["kms:GenerateDataKey*","kms:Decrypt"],"Resource":"*"}]}
+  %aws_kms_key_resources.Properties.Description == "A key for common usage."
+  %aws_kms_key_resources.Properties.EnableKeyRotation == true
+}

@@ -1,0 +1,27 @@
+Parsing error with generated rules file, Error = Parser Error when parsing Parsing Error Error parsing file  at line 13 at column 81, when handling , fragment ":"${Admin01AccessKey}","secretAccessKey":"${Admin01AccessKey.SecretAccessKey}"}"
+  %aws_secretsmanager_secret_resources.Properties.Name IN ["admin01-credentials", "admin01-passowrd"]
+}
+let aws_iam_user_resources = Resources.*[ Type == 'AWS::IAM::User' ]
+rule aws_iam_user when %aws_iam_user_resources !empty {
+  %aws_iam_user_resources.Properties.Groups == ["AllGroup","AdminGroup"]
+  %aws_iam_user_resources.Properties.LoginProfile == {"Password":"{{resolve:secretsmanager:${Admin01Password}:SecretString:password::}}","PasswordResetRequired":true}
+  %aws_iam_user_resources.Properties.UserName == "DefaultAdminUserName"
+}
+let aws_iam_managedpolicy_resources = Resources.*[ Type == 'AWS::IAM::ManagedPolicy' ]
+rule aws_iam_managedpolicy when %aws_iam_managedpolicy_resources !empty {
+  %aws_iam_managedpolicy_resources.Properties.PolicyDocument IN [{"Version":"2012-10-17","Statement":[{"Effect":"Deny","NotAction":"iam:*","Resource":"*","Condition":{"BoolIfExists":{"aws:MultiFactorAuthPresent":false}}}]}, {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["iam:ChangePassword","iam:CreateAccessKey","iam:CreateVirtualMFADevice","iam:DeactivateMFADevice","iam:DeleteAccessKey","iam:DeleteVirtualMFADevice","iam:EnableMFADevice","iam:GetAccountPasswordPolicy","iam:UpdateAccessKey","iam:UpdateSigningCertificate","iam:UploadSigningCertificate","iam:UpdateLoginProfile","iam:ResyncMFADevice"],"Resource":["arn:aws:iam::${AWS::AccountId}:user/${!aws:username}","arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}"]}]}, {"Version":"2012-10-17","Statement":[{"Effect":"Deny","Action":"*","Resource":"*","Condition":{"NotIpAddress":{"aws:SourceIp":"DefaultIPAddress"}}}]}]
+  %aws_iam_managedpolicy_resources.Properties.ManagedPolicyName IN ["SetOwnCredentialsPolicy", "ForceMFAPolicy", "IPRestrictionPolicy"]
+  %aws_iam_managedpolicy_resources.Properties.Description IN ["Policy to deny all actions without IAM if MFA is not activated.", "Policy to set own credentials(password, MFA, etc).", "Policy to deny all actions from non specified IP address."]
+}
+let aws_iam_group_resources = Resources.*[ Type == 'AWS::IAM::Group' ]
+rule aws_iam_group when %aws_iam_group_resources !empty {
+  %aws_iam_group_resources.Properties.GroupName IN ["AdminGroup", "AllGroup"]
+  %aws_iam_group_resources.Properties.Policies == [{"PolicyName":"AssumeRolePolicy","PolicyDocument":{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"AdminRole.Arn"}]}}]
+  %aws_iam_group_resources.Properties.ManagedPolicyArns IN [["ForceMFAPolicy"], ["arn:aws:iam::aws:policy/ReadOnlyAccess","SetOwnCredentialsPolicy","IPRestrictionPolicy"]]
+}
+let aws_iam_accesskey_resources = Resources.*[ Type == 'AWS::IAM::AccessKey' ]
+rule aws_iam_accesskey when %aws_iam_accesskey_resources !empty {
+  %aws_iam_accesskey_resources.Properties.UserName == "Admin01"
+}
+
+

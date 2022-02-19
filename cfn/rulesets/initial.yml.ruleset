@@ -1,0 +1,14 @@
+let aws_iam_role_resources = Resources.*[ Type == 'AWS::IAM::Role' ]
+rule aws_iam_role when %aws_iam_role_resources !empty {
+  %aws_iam_role_resources.Properties.ManagedPolicyArns == ["arn:aws:iam::aws:policy/AdministratorAccess"]
+  %aws_iam_role_resources.Properties.Description == "Role for Github Actions to deploy CFn templates."
+  %aws_iam_role_resources.Properties.AssumeRolePolicyDocument == {"Statement":[{"Effect":"Allow","Action":"sts:AssumeRoleWithWebIdentity","Principal":{"Federated":"GithubOidcProvider"},"Condition":{"StringLike":{"token.actions.githubusercontent.com:sub":"repo:${CFnTemplatesRepoName}:*"}}}]}
+  %aws_iam_role_resources.Properties.RoleName == "GithubActionsRole"
+  %aws_iam_role_resources.Properties.MaxSessionDuration == 3600
+}
+let aws_iam_oidcprovider_resources = Resources.*[ Type == 'AWS::IAM::OIDCProvider' ]
+rule aws_iam_oidcprovider when %aws_iam_oidcprovider_resources !empty {
+  %aws_iam_oidcprovider_resources.Properties.ThumbprintList == ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+  %aws_iam_oidcprovider_resources.Properties.Url == "https://token.actions.githubusercontent.com"
+  %aws_iam_oidcprovider_resources.Properties.ClientIdList == ["sts.amazonaws.com"]
+}
