@@ -10,6 +10,18 @@ Parameters:
 
 Resources:
   #-----------------------------------------------------------------------------
+  # OIDC Providers
+  #-----------------------------------------------------------------------------
+  GithubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+      ClientIdList:
+        - sts.amazonaws.com
+
+  #-----------------------------------------------------------------------------
   # Roles
   #-----------------------------------------------------------------------------
   GithubActionsRole:
@@ -36,15 +48,3 @@ Resources:
             reason: Pending
           - id: W43
             reason: This role can be only used by Github actions
-
-  #-----------------------------------------------------------------------------
-  # OIDC Providers
-  #-----------------------------------------------------------------------------
-  GithubOidcProvider:
-    Type: AWS::IAM::OIDCProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1
-      ClientIdList:
-        - sts.amazonaws.com

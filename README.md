@@ -11,7 +11,7 @@ Templates
 ### Overview
 |Template|Stack|Description|
 |--------|-----|-----------|
-|[initial.yml](cfn/templates/initial.yml)|InitialStack|Create a admin user, a role for Github Actions CD.|
+|[initial.yml](cfn/templates/initial.yml)|InitialStack|Create a role for Github Actions CD.|
 |[kms.yml](cfn/templates/kms.yml)|KMSStack|Create key for common usage.|
 |[config.yml](cfn/templates/config.yml)|ConfigStack|Enable Config service.|
 |[cloudtrail.yml](cfn/templates/cloudtrail.yml)|CloudtrailStack|Enable Cloudtrail service.|
@@ -22,8 +22,8 @@ Templates
 
 
 ### Resouces created by templates
-- initial.yml
-![](./docs/imgs/initial.jpg?raw=true "Initial")
+- initial.yml  
+![initial.yml](./docs/imgs/drawio/initial.png)
 
 - kms.yml
 ![](./docs/imgs/kms.jpg?raw=true "KMS")
@@ -46,13 +46,23 @@ Templates
 - ssm-patchmanager.yml
 ![](./docs/imgs/ssm-patchmanager.jpg?raw=true "SSM Patch Manager")
 
-CI
---
+Usage
+-----
+### Before starting CI/CD
+- Deploy the initial.yml template manually to create an IAM role to deploy templates by Github Actions.
+```
+$ aws cloudformation deploy --stack-name InitialStack --template-file cfn/templates/initial.yml 
+```
+- Set Github Actions secrets AWS_ACCOUNTID to your account id(Ex. 123456789012)
+
+### CI
 - Check templates with cfn-lint, cfn-nag by Github Actions.[(check.yml)](.github/workflows/check.yml)
 - When you push a commit to a branch other than the master branch, Github Actions will run cfn-lint, cfn-nag against the templates.
+- Click a button to show the check workflow results.
+[![Check CFn templates](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/check.yml/badge.svg)](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/check.yml)
 
-CD
---
+### CD
 - Deploy templates to your AWS environment by Github Actions.[(deploy.yml)](.github/workflows/deploy.yml)
-  - Before deploying templates, you must set Actions secrets AWS_ACCOUNTID to your account id(Ex. 123456789012)
 - When you commit to the master branch or merge a pull request into the master branch, Github Actions will apply the templates.
+- Click a button to show the deploy workflow results.
+[![Deploy CFn templates](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/deploy.yml/badge.svg)](https://github.com/codequokka/cloudformation-cicd-example/actions/workflows/deploy.yml)

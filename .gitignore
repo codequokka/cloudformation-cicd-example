@@ -4,6 +4,10 @@
 # Ruby
 vendor/
 
+# Node
+node_modules/
+
 # Etc
 tmp/
 *.zip
+*.bak
