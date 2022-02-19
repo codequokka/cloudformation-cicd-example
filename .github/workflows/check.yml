@@ -7,6 +7,7 @@ on:
       - "!master"
     paths:
       - cfn/templates/*
+      - cfn/rulesets/*
       - .github/workflows/check.yml
 
 jobs:
@@ -69,5 +70,53 @@ jobs:
       - name: Run cfn-guard validate against the initial template
         env:
           TEMPLATE_FILE: initial.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the iam template
+        env:
+          TEMPLATE_FILE: iam.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the kms template
+        env:
+          TEMPLATE_FILE: kms.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the config template
+        env:
+          TEMPLATE_FILE: config.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the cloudtrail template
+        env:
+          TEMPLATE_FILE: cloudtrail.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the guardduty template
+        env:
+          TEMPLATE_FILE: guardduty.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the vpc template
+        env:
+          TEMPLATE_FILE: vpc.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the ec2 template
+        env:
+          TEMPLATE_FILE: ec2.yml
+        run: |
+          ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
+
+      - name: Run cfn-guard validate against the ssm patch manager template
+        env:
+          TEMPLATE_FILE: ssm-patchmanager.yml
         run: |
           ./cfn-guard-v2-ubuntu-latest/cfn-guard validate -d cfn/templates/initial.yml -r cfn/rulesets/initial.yml.ruleset
