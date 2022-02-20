@@ -1,0 +1,7 @@
+repos:
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.26.3
+    hooks:
+      - id: yamllint
+        args: [-s]
+        files: cfn/templates/.*\.(yml|yaml)$
