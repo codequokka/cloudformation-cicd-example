@@ -7,6 +7,9 @@ vendor/
 # Node
 node_modules/
 
+# AWS
+.session-token
+
 # Etc
 tmp/
 *.zip
