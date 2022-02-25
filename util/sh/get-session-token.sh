@@ -13,7 +13,8 @@
 #   $ export AWS_PROFILE=<profile>
 #   $ export AWS_SERIAL_NUMBER=arn:aws:iam::<aws-account-id>:mfa/<iam-user>
 #   $ set-session-token.sh
-#   Input token code: 123456
+#   Input duration seconds: 28800
+#   Input token code: <one-time-password>
 #   $ source .session-token
 #
 #   # MFA & swith role
@@ -21,7 +22,8 @@
 #   $ export AWS_SERIAL_NUMBER=arn:aws:iam::<aws-account-id>:mfa/<iam-user>
 #   $ export AWS_ROLE_ARN=arn:aws:iam::<aws-account-id>:role/<iam-role>
 #   $ set-session-token.sh
-#   Input token code: 123456
+#   Input duration seconds: 28800
+#   Input token code: <one-time-password>
 #   $ source .session-token
 
 
@@ -31,6 +33,7 @@ help() {
     else { exit }
   }' "${0}"
 }
+
 
 check_common_requirements() {
   if ! type 'aws' > /dev/null 2>&1; then
@@ -69,7 +72,10 @@ done
 check_common_requirements
 
 
-read -rp "Input token code: " token_code
+# Session token default duration seconds: 28800(8H)
+duration_seconds=$((60 * 60 * 8))
+read -e -r -p "Input duration seconds: " -i $duration_seconds duration_seconds
+read -r -p "Input token code: " token_code
 
 
 # Avoid the following error that occurs when obtaining a session token while the session token is already set
@@ -80,33 +86,37 @@ unset AWS_SECRET_ACCESS_KEY
 unset AWS_SESSION_TOKEN
 
 
-if [ -z "$AWS_ROLE_ARN" ];then
+if [ -z "$AWS_ROLE_ARN" ]; then
   output=$(aws sts get-session-token \
+    --duration-seconds "$duration_seconds" \
     --serial-number "$AWS_SERIAL_NUMBER" \
     --token-code "$token_code")
 else
   output=$(aws sts assume-role \
     --role-arn "$AWS_ROLE_ARN" \
     --role-session-name "$AWS_PROFILE" \
-    --duration-seconds 3600 \
+    --duration-seconds "$duration_seconds" \
     --serial-number "$AWS_SERIAL_NUMBER" \
     --token-code "$token_code")
 fi
 
 
-if [ $? -ne 0 ];then
-  echo "Make sure your aws profile, serial number, token code are correct."
+if [ $? -ne 0 ]; then
+  echo "Make sure your aws profile, iam role, serial number, token code are correct."
   exit 1
 fi
+
 
 aws_access_key_id=$(echo "$output" | jq -r .Credentials.AccessKeyId)
 aws_secret_access_key=$(echo "$output" | jq -r .Credentials.SecretAccessKey)
 aws_session_token=$(echo "$output" | jq -r .Credentials.SessionToken)
 expiration=$(echo "$output" | jq -r .Credentials.Expiration)
 
+
 sessioin_token_file='.session-token'
 touch $sessioin_token_file
 chmod 600 $sessioin_token_file
+
 
 echo "# Expiration time(UTC): $expiration" | tee $sessioin_token_file
 echo "export AWS_PROFILE=$AWS_PROFILE" | tee -a $sessioin_token_file
