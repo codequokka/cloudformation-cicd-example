@@ -4,20 +4,27 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Create IAM users.
 
 Parameters:
-  # DefaultUserPassword:
-  #   Type: String
-  #   NoEcho: true
-
-  DefaultAdminUserName:
-    Type: String
-    NoEcho: true
-
   DefaultIPAddress:
     Type: String
     Default: 0.0.0.0/32
     NoEcho: true
 
-  CreateAccessKey:
+  Admin01UserName:
+    Type: String
+    NoEcho: true
+
+  WebAdmin01UserName:
+    Type: String
+    NoEcho: true
+
+  CreateAdmin01User:
+    Type: String
+    Default: false
+    AllowedValues:
+      - true
+      - false
+
+  CreateWebAdmin01User:
     Type: String
     Default: false
     AllowedValues:
@@ -25,12 +32,13 @@ Parameters:
       - false
 
 Conditions:
-  CreateAccessKey: !Equals [true, !Ref CreateAccessKey]
+  CreateAdmin01User: !Equals [true, !Ref CreateAdmin01User]
+  CreateWebAdmin01User: !Equals [true, !Ref CreateWebAdmin01User]
 
 Resources:
-  #-----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
   # Policies
-  #-----------------------------------------------------------------------------
+  # ----------------------------------------------------------------------------
   SetOwnCredentialsPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -103,9 +111,9 @@ Resources:
           - id: W28
             reason: Pending
 
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   # Groups
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   # For All users.
   AllGroup:
     Type: AWS::IAM::Group
@@ -142,9 +150,30 @@ Resources:
           - id: W28
             reason: Pending
 
-  #-----------------------------------------------------------------------------
+  # For Web administrator users.
+  WebAdminGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: WebAdminGroup
+      # ManagedPolicyArns:
+      #   - !Ref ForceMFAPolicy
+      Policies:
+        - PolicyName: AssumeRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !GetAtt WebAdminRole.Arn
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  # -----------------------------------------------------------------------------
   # Roles
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   # For Administrator users.
   AdminRole:
     Type: AWS::IAM::Role
@@ -173,20 +202,66 @@ Resources:
           - id: W43
             reason: This role can be only used by specified user with MFA is activated
 
-  #-----------------------------------------------------------------------------
+  # For Web administrator users.
+  WebAdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: WebAdminRole
+      Description: Role for Web administrator users
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::${AWS::AccountId}:root
+            # Condition:
+            #   Bool:
+            #     aws:MultiFactorAuthPresent: true
+      Policies:
+        - PolicyName: SSMLoginPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:StartSession
+                Resource:
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                Condition:
+                  StringLike:
+                    ssm:resourceTag/Name:
+                      - Web01
+                      - Web02
+              - Effect: Allow
+                Action:
+                  - ssm:TerminateSession
+                  - ssm:ResumeSession
+                Resource:
+                  - arn:aws:ssm:*:*:session/${aws:username}-*
+      MaxSessionDuration: 43200
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: Pending
+
+  # -----------------------------------------------------------------------------
   # Users
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   # Administrator users.
   Admin01:
     Type: AWS::IAM::User
     Properties:
-      UserName: !Ref DefaultAdminUserName
+      UserName: !Ref Admin01UserName
       LoginProfile:
         Password: !Sub "{{resolve:secretsmanager:${Admin01Password}:SecretString:password::}}"
         PasswordResetRequired: true
       Groups:
         - !Ref AllGroup
         - !Ref AdminGroup
+    Condition: CreateAdmin01User
 
   Admin01Password:
     Type: AWS::SecretsManager::Secret
@@ -197,16 +272,27 @@ Resources:
         GenerateStringKey: password
         PasswordLength: 32
         SecretStringTemplate: "{}"
+    Condition: CreateAdmin01User
 
-  #-----------------------------------------------------------------------------
+  # Web administrator users.
+  WebAdmin01:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref WebAdmin01UserName
+      Groups:
+        - !Ref AllGroup
+        - !Ref WebAdminGroup
+    Condition: CreateWebAdmin01User
+
+  # -----------------------------------------------------------------------------
   # Access keys, Access key secrets
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   # Admin01 user.
   Admin01AccessKey:
     Type: AWS::IAM::AccessKey
     Properties:
       UserName: !Ref Admin01
-    Condition: CreateAccessKey
+    Condition: CreateAdmin01User
 
   Admin01AccessKeySecret:
     Type: AWS::SecretsManager::Secret
@@ -214,4 +300,19 @@ Resources:
       Name: admin01-credentials
       KmsKeyId: !ImportValue CommonKeyArn
       SecretString: !Sub '{"accessKeyId":"${Admin01AccessKey}","secretAccessKey":"${Admin01AccessKey.SecretAccessKey}"}'
-    Condition: CreateAccessKey
+    Condition: CreateAdmin01User
+
+  # WebAdmin01 user.
+  WebAdmin01AccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref WebAdmin01
+    Condition: CreateWebAdmin01User
+
+  WebAdmin01AccessKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: webadmin01-credentials
+      KmsKeyId: !ImportValue CommonKeyArn
+      SecretString: !Sub '{"accessKeyId":"${WebAdmin01AccessKey}","secretAccessKey":"${WebAdmin01AccessKey.SecretAccessKey}"}'
+    Condition: CreateWebAdmin01User
