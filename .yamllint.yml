@@ -1,0 +1,9 @@
+extends: default
+
+rules:
+  # Fail if a line is longer than 120 chars
+  line-length:
+    max: 140
+
+  # Don't force comments to be indented like content
+  comments-indentation: disable
