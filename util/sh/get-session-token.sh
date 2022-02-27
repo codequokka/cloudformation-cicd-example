@@ -110,6 +110,7 @@ else
   else
     # MFA and Switch Role
     credential=$(aws sts assume-role \
+      --duration-seconds "$duration_seconds" \
       --role-arn "$AWS_ROLE_ARN" \
       --role-session-name "$AWS_ROLE_SESSION_NAME" \
       --serial-number "$AWS_SERIAL_NUMBER" \
