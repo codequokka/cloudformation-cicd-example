@@ -52,7 +52,6 @@ Resources:
               - iam:ChangePassword
               - iam:CreateAccessKey
               - iam:CreateVirtualMFADevice
-              - iam:DeactivateMFADevice
               - iam:DeleteAccessKey
               - iam:DeleteVirtualMFADevice
               - iam:EnableMFADevice
@@ -62,12 +61,25 @@ Resources:
               - iam:UploadSigningCertificate
               - iam:UpdateLoginProfile
               - iam:ResyncMFADevice
+              - iam:Get*
+              - iam:List*
             Resource:
               - !Sub arn:aws:iam::${AWS::AccountId}:user/${!aws:username}
               - !Sub arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}
+          - Effect: Allow
+            Action:
+              - iam:DeactivateMFADevice
+            Resource:
+              - !Sub arn:aws:iam::${AWS::AccountId}:user/${!aws:username}
+              - !Sub arn:aws:iam::${AWS::AccountId}:mfa/${!aws:username}
+            Condition:
+              Bool:
+                aws:MultiFactorAuthPresent: true
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W13
+            reason: Pending
           - id: W28
             reason: Pending
 
@@ -120,7 +132,7 @@ Resources:
     Properties:
       GroupName: AllGroup
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/ReadOnlyAccess
+        - !Ref ForceMFAPolicy
         - !Ref SetOwnCredentialsPolicy
         - !Ref IPRestrictionPolicy
     Metadata:
@@ -135,7 +147,7 @@ Resources:
     Properties:
       GroupName: AdminGroup
       ManagedPolicyArns:
-        - !Ref ForceMFAPolicy
+        - arn:aws:iam::aws:policy/ReadOnlyAccess
       Policies:
         - PolicyName: AssumeRolePolicy
           PolicyDocument:
@@ -155,8 +167,6 @@ Resources:
     Type: AWS::IAM::Group
     Properties:
       GroupName: WebAdminGroup
-      # ManagedPolicyArns:
-      #   - !Ref ForceMFAPolicy
       Policies:
         - PolicyName: AssumeRolePolicy
           PolicyDocument:
@@ -216,9 +226,9 @@ Resources:
             Principal:
               AWS:
                 - !Sub arn:aws:iam::${AWS::AccountId}:root
-            # Condition:
-            #   Bool:
-            #     aws:MultiFactorAuthPresent: true
+            Condition:
+              Bool:
+                aws:MultiFactorAuthPresent: true
       Policies:
         - PolicyName: SSMLoginPolicy
           PolicyDocument:
