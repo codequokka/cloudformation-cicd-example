@@ -1,7 +1,7 @@
 [
   {
     "ParameterKey": "EnableCloudtrailService",
-    "ParameterValue": "false"
+    "ParameterValue": "true"
   },
   {
     "ParameterKey": "EnableGuarddutyService",
